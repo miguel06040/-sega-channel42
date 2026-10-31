@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+
+base="${SEGA_CHANNEL42_HOME:-$HOME/sega-channel42}"
+core="${SEGA_CHANNEL42_CORE:-$base/cores/genesis_plus_gx_ex_libretro.so}"
+monthly_roms=(
+    "Sega Channel Revival - JAN 94.MD"
+    "Sega Channel Revival - Feb 94.MD"
+    "Sega Channel Revival March 94.md"
+    "Sega Channel Revival April 94.md"
+    "Sega Channel Revival - May 94.MD"
+    "Sega Channel Revival - June 94.md"
+    "Sega Channel Revival - July 94.md"
+    "Sega Channel Revival - AUG 94.md"
+    "Sega Channel Revival September 94.md"
+    "Sega Channel Revival - OCT 94.MD"
+    "Sega Channel Revival November 94.md"
+    "Sega Channel Revival - December 94.MD"
+)
+month=$(date +%m)
+rom="${SEGA_CHANNEL42_ROM:-$base/roms/${monthly_roms[$((10#$month - 1))]}}"
+config="$base/retroarch.cfg"
+
+mkdir -p "$base/logs"
+exec >> "$base/logs/channel42.log" 2>&1
+printf '\n[%s] Starting Sega Channel 42\n' "$(date -Is)"
+
+command -v retroarch >/dev/null
+command -v flock >/dev/null
+for item in "$core" "$rom" "$config"; do
+    if [[ ! -r "$item" ]]; then
+        printf 'Missing or unreadable file: %s\n' "$item"
+        exit 1
+    fi
+done
+
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DISPLAY="${DISPLAY:-:0}"
+export XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}"
+
+exec flock --nonblock --no-fork \
+    "$XDG_RUNTIME_DIR/sega-channel42.lock" \
+    retroarch --verbose --fullscreen \
+    --appendconfig "$config" \
+    -L "$core" "$rom"
